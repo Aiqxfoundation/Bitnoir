@@ -1,0 +1,233 @@
+I have downloaded the complete source code of my Bitnoir (BTNR) application as a ZIP file.
+
+Your job is to understand the ENTIRE existing application, inspect everything that has already been built, identify all incomplete or missing features, finish the application, test it, and deploy it live on Replit.
+
+CRITICAL RULES:
+- Do not start coding immediately.
+- First inspect and understand the entire project.
+- Do not rebuild everything from scratch.
+- Preserve working features and the existing design.
+- Do not assume a feature works just because its UI exists.
+- Read the source code, configuration, dependencies, database schema, API routes, authentication, and existing documentation before making changes.
+- Do not waste time or resources recreating features that already work.
+
+PHASE 1 — COMPLETE PROJECT AUDIT
+
+Inspect the entire extracted source code, including:
+- Frontend pages and components.
+- Backend services and API routes.
+- Authentication and registration.
+- Database schema, migrations, and data models.
+- Wallet connection implementation.
+- Bits balances, transfers, and ledger.
+- Referral system.
+- Leaderboard.
+- BNB deposits and verification.
+- Withdrawals and admin approval.
+- Farming and reward calculations.
+- Admin panel and permissions.
+- Documentation page.
+- Token utility features.
+- Environment variables and configuration.
+- Build scripts, dependencies, and deployment settings.
+
+Identify:
+1. Fully implemented features.
+2. Partially implemented features.
+3. UI-only features without working backend logic.
+4. Missing features.
+5. Bugs, security vulnerabilities, and broken integrations.
+6. Missing environment variables or external services.
+7. Build and deployment problems.
+
+Create a concise internal checklist and implementation plan before proceeding.
+
+PHASE 2 — UNDERSTAND THE EXISTING ARCHITECTURE
+
+Determine the existing technology stack and work with it wherever practical.
+
+- Reuse existing dependencies and components.
+- Avoid unnecessary package installations.
+- Do not replace working systems without a strong technical reason.
+- Preserve existing routes, database data, and user-facing functionality.
+- If a database is already configured, inspect and reuse it.
+- If migrations are required, apply them safely without destroying existing data.
+- Never overwrite the source project with a generic template.
+
+PHASE 3 — COMPLETE ALL MISSING FEATURES
+
+Use the original Bitnoir requirements and the existing source code to determine what remains unfinished.
+
+Complete all missing functionality, including where applicable:
+
+A. AUTHENTICATION
+- Secure registration and login.
+- Session management and server-side authorization.
+- Secure account validation.
+
+B. WALLET CONNECTION
+Support direct browser-based connections to:
+- MetaMask.
+- Trust Wallet.
+- OKX Web3 Wallet.
+
+Detect injected wallets using EIP-6963 where supported, with standard EIP-1193 provider detection as a fallback.
+
+IMPORTANT:
+- Do not add WalletConnect or Reown.
+- Do not require a WalletConnect project ID or wallet connection API key.
+- Never request private keys or seed phrases.
+- Do not fake successful wallet connections.
+
+C. BITS AND LEADERBOARD
+- Registration reward: 100 Bits.
+- Eligible direct referral reward: 10 Bits.
+- User-to-user Bits transfers.
+- Secure and auditable Bits ledger.
+- Leaderboard showing ONLY rank, username, and Bits balance.
+- No wallet balances or financial information on the leaderboard.
+
+D. REFERRALS
+- Unique referral codes and links.
+- Accurate referral tracking.
+- Protection against self-referrals and duplicate rewards.
+- Correct reward accounting.
+
+E. BNB DEPOSITS
+- Direct wallet transactions to the configured treasury address.
+- Server-side transaction verification.
+- Duplicate transaction protection.
+- Pending deposit requests.
+- Manual admin approval before internal balance credit.
+
+F. WITHDRAWALS
+- Withdrawal requests and balance validation.
+- Configurable 2% fee.
+- Manual treasury payment.
+- Transaction verification and audit history.
+- No false claims of successful payments.
+
+G. FARMING AND REWARDS
+- Configurable 15, 30, 45, and 60-day periods.
+- Accurate reward calculations.
+- Lock status, maturity, claims, and transaction history.
+- Protection against duplicate claims.
+- No guaranteed-return claims.
+
+H. ADMIN PANEL
+- Exclusive Super Admin access.
+- Secure, deployment-controlled, one-time initialization.
+- Backend authorization for every administrative operation.
+- Deposit approvals, withdrawal management, user management, farming settings, and audit logs.
+- No privilege escalation through registration or API manipulation.
+
+I. DOCUMENTATION
+- Project overview.
+- BTNR utility.
+- Tokenomics.
+- AI Agent vision.
+- Farming and referral rules.
+- Roadmap.
+- Security and risk disclosures.
+
+J. TOKEN AND AI FEATURES
+Complete existing features where possible.
+Clearly label functionality that genuinely requires future smart-contract deployment, liquidity, paid external services, or other unavailable infrastructure.
+
+Do not fabricate blockchain transactions, token balances, AI results, or successful integrations.
+
+PHASE 4 — DATABASE AND SECURITY
+
+Review and fix:
+- Authentication vulnerabilities.
+- Missing authorization checks.
+- Incorrect balance calculations.
+- Duplicate transactions and reward claims.
+- Race conditions.
+- Invalid input handling.
+- Exposed secrets.
+- Unsafe database operations.
+
+Use atomic database transactions for financial accounting.
+
+Use precise monetary arithmetic, proper transaction verification, idempotency, and complete audit logs.
+
+Never expose private keys, credentials, or privileged secrets to the frontend.
+
+Preserve existing user data whenever possible.
+
+PHASE 5 — ENVIRONMENT CONFIGURATION
+
+Inspect the application and identify every environment variable that is genuinely required.
+
+- Reuse existing valid configuration.
+- Create or update .env.example with variable names and descriptions.
+- Never commit real secrets to source control.
+- Do not invent API keys or pretend unavailable credentials exist.
+- Do not add unnecessary paid services.
+- Prefer free resources when practical.
+- If an external service requires credentials, explain exactly why and provide the variable name.
+- Wallet detection and direct injected-wallet connections must not require WalletConnect or Reown credentials.
+
+If a required service is unavailable, complete everything else that can be implemented and clearly identify the remaining dependency.
+
+PHASE 6 — BUILD AND TEST
+
+After implementation:
+
+1. Install only the necessary dependencies.
+2. Run the existing build process.
+3. Fix all compilation and type errors.
+4. Run available tests.
+5. Test registration and login.
+6. Test wallet detection and connection.
+7. Test Bits rewards and transfers.
+8. Test leaderboard accuracy.
+9. Test referrals and duplicate-reward prevention.
+10. Test deposit verification and admin approval.
+11. Test withdrawal accounting.
+12. Test farming calculations and duplicate-claim prevention.
+13. Test Super Admin authorization.
+14. Test mobile and desktop layouts.
+15. Fix any errors discovered.
+
+Do not claim tests passed unless they were actually executed.
+
+PHASE 7 — DEPLOY LIVE ON REPLIT
+
+Deploy the completed application using Replit's supported deployment workflow.
+
+- Configure the correct start and build commands.
+- Configure the required environment variables.
+- Ensure the server binds to the appropriate host and port.
+- Configure database access and migrations safely.
+- Confirm the frontend and backend work together in production.
+- Fix production build errors and runtime crashes.
+- Verify the deployed URL actually loads.
+- Test important application routes after deployment.
+- Check server logs for startup errors.
+- Do not expose database credentials or secrets.
+
+If deployment requires a user-controlled action, permission, credential, or paid resource that you cannot access, finish all other work and explain the exact action required.
+
+Do not falsely report a successful deployment.
+
+FINAL REPORT
+
+When finished, provide:
+1. What the original project already contained.
+2. What you fixed.
+3. What features you completed.
+4. What remains incomplete and why.
+5. Required environment variables, if any.
+6. Build and test results.
+7. The live Replit deployment URL.
+8. Any remaining action required from me.
+
+EXECUTION REQUIREMENT:
+
+Do not stop after producing an audit, checklist, plan, or explanation.
+
+Inspect first, then implement, test, fix, and deploy in the same workflow.
+
+Prioritize preserving existing functionality, correctness, security, and a working live application over unnecessary redesigns or extra features.

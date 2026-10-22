@@ -3,13 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Bitnoir first-release account, Bits, leaderboard, wallet, and admin API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: accounts
+    description: Authenticated Bitnoir profiles
+  - name: bits
+    description: Internal platform Bits ledger and transfers
+  - name: leaderboard
+    description: Public Bits rankings only
+  - name: wallets
+    description: Signed wallet ownership verification
+  - name: admin
+    description: Super Admin-only platform management
 paths:
   /healthz:
     get:
@@ -24,6 +34,629 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Get users ranked by current Bits balance
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Public rankings; contains no wallet, contact, or token balance data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+  /users/me:
+    get:
+      operationId: getMyProfile
+      tags: [accounts]
+      summary: Get the signed-in user's Bitnoir profile
+      responses:
+        "200":
+          description: Current user's application profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401": { description: Authentication required }
+        "404": { description: Profile has not been created }
+    post:
+      operationId: createMyProfile
+      tags: [accounts]
+      summary: Create a profile after Clerk registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileInput"
+      responses:
+        "201":
+          description: Profile created with initial Bits and optional eligible referral credit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400": { description: Invalid username or referral code }
+        "401": { description: Authentication required }
+        "409": { description: Username is already taken or profile already exists }
+  /bits/ledger:
+    get:
+      operationId: getMyBitsLedger
+      tags: [bits]
+      summary: Get the signed-in user's auditable Bits ledger
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Ledger entries for the current user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BitsLedgerEntry"
+        "401": { description: Authentication required }
+  /bits/transfers:
+    post:
+      operationId: transferBits
+      tags: [bits]
+      summary: Transfer internal Bits to another registered user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BitsTransferInput"
+      responses:
+        "201":
+          description: Transfer recorded in both users' ledgers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BitsTransfer"
+        "400": { description: Invalid transfer }
+        "401": { description: Authentication required }
+        "404": { description: Recipient not found }
+        "409": { description: Insufficient balance or duplicate idempotency key }
+  /wallets/nonce:
+    get:
+      operationId: getWalletNonce
+      tags: [wallets]
+      summary: Create a single-use wallet ownership challenge
+      responses:
+        "200":
+          description: Signed-message challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletNonce"
+        "401": { description: Authentication required }
+  /wallets/verify:
+    post:
+      operationId: verifyWallet
+      tags: [wallets]
+      summary: Verify ownership of an EVM wallet using a signed challenge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletVerificationInput"
+      responses:
+        "200":
+          description: Wallet associated with the signed-in user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletAssociation"
+        "400": { description: Signature or challenge is invalid or expired }
+        "401": { description: Authentication required }
+        "409": { description: Wallet is already associated with another account }
+  /wallets:
+    get:
+      operationId: getMyWallets
+      tags: [wallets]
+      summary: List the signed-in user's verified wallet addresses
+      responses:
+        "200":
+          description: Verified wallets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WalletAssociation"
+        "401": { description: Authentication required }
+  /admin/users:
+    get:
+      operationId: getAdminUsers
+      tags: [admin]
+      summary: List Bitnoir accounts for the Super Admin
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Paginated account list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUser"
+        "401": { description: Authentication required }
+        "403": { description: Super Admin access required }
+  /admin/users/{userId}/suspension:
+    patch:
+      operationId: setUserSuspension
+      tags: [admin]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuspensionInput"
+      responses:
+        "200":
+          description: Account status updated and audited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "401": { description: Authentication required }
+        "403": { description: Super Admin access required }
+        "404": { description: User not found }
+  /admin/ledger:
+    get:
+      operationId: getAdminBitsLedger
+      tags: [admin]
+      summary: Review Bits ledger entries across accounts
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Paginated Bits ledger for the Super Admin
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminLedgerEntry"
+        "401": { description: Authentication required }
+        "403": { description: Super Admin access required }
+  /admin/audit:
+    get:
+      operationId: getAdminAuditLog
+      tags: [admin]
+      summary: View security and administrator actions
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Paginated audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEvent"
+        "401": { description: Authentication required }
+        "403": { description: Super Admin access required }
+  /config:
+    get:
+      operationId: getPublicConfig
+      tags: [health]
+      summary: Get public feature availability and network configuration
+      responses:
+        "200":
+          description: Public app configuration; no secret values
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicConfig"
+  /dashboard:
+    get:
+      operationId: getDashboardSummary
+      tags: [accounts]
+      summary: Get the signed-in user's account summary
+      responses:
+        "200":
+          description: Account balances and activity counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401": { description: Authentication required }
+  /referrals:
+    get:
+      operationId: getMyReferrals
+      tags: [accounts]
+      summary: Get direct referrals and referral reward totals
+      responses:
+        "200":
+          description: Current user's referral activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralSummary"
+        "401": { description: Authentication required }
+  /bnb/deposits:
+    get:
+      operationId: getMyDeposits
+      tags: [wallets]
+      summary: List the signed-in user's verified BNB deposit requests
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: User-owned deposit requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BnbDeposit" }
+        "401": { description: Authentication required }
+    post:
+      operationId: createBnbDeposit
+      tags: [wallets]
+      summary: Submit a BNB transaction hash for server-side verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BnbDepositInput" }
+      responses:
+        "201":
+          description: Verified transaction recorded as pending admin approval
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BnbDeposit" }
+        "400": { description: "Transaction is invalid, unconfirmed, or sent on the wrong chain" }
+        "401": { description: Authentication required }
+        "409": { description: Transaction hash was already submitted }
+        "503": { description: BNB deposit verification is not configured }
+  /bnb/withdrawals:
+    get:
+      operationId: getMyWithdrawals
+      tags: [wallets]
+      summary: List the signed-in user's BNB withdrawal requests
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: User-owned withdrawal requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BnbWithdrawal" }
+        "401": { description: Authentication required }
+    post:
+      operationId: createBnbWithdrawal
+      tags: [wallets]
+      summary: Reserve a BNB withdrawal, applying the disclosed fee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BnbWithdrawalInput" }
+      responses:
+        "201":
+          description: Withdrawal reserved for manual treasury payment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BnbWithdrawal" }
+        "400": { description: Invalid amount or destination wallet }
+        "401": { description: Authentication required }
+        "409": { description: Insufficient available BNB balance }
+  /farming/terms:
+    get:
+      operationId: getFarmingTerms
+      tags: [farming]
+      summary: List configured farming durations and non-guaranteed rate settings
+      responses:
+        "200":
+          description: Farming terms; disabled terms cannot be started
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FarmingTerm" }
+  /farming/positions:
+    get:
+      operationId: getMyFarmPositions
+      tags: [farming]
+      summary: List the signed-in user's farming positions
+      responses:
+        "200":
+          description: Farming positions and claim status
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FarmPosition" }
+        "401": { description: Authentication required }
+    post:
+      operationId: createFarmPosition
+      tags: [farming]
+      summary: Lock available BNB into a configured farming term
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FarmPositionInput" }
+      responses:
+        "201":
+          description: BNB reserved and farming position created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FarmPosition" }
+        "400": { description: Invalid amount or farming term }
+        "401": { description: Authentication required }
+        "409": { description: Farming term is disabled or balance is insufficient }
+  /farming/positions/{farmId}/claim:
+    post:
+      operationId: claimFarmPosition
+      tags: [farming]
+      summary: Claim a matured farming position once
+      parameters:
+        - in: path
+          name: farmId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Principal and configured estimated reward credited to internal BNB balance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FarmPosition" }
+        "401": { description: Authentication required }
+        "404": { description: Position not found }
+        "409": { description: Position has not matured or was already claimed }
+  /admin/setup:
+    get:
+      operationId: getAdminSetup
+      tags: [admin]
+      summary: Check whether the signed-in account can initialize Super Admin
+      responses:
+        "200":
+          description: One-time initialization state; includes only the caller's own Clerk ID
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminSetup" }
+        "401": { description: Authentication required }
+  /admin/initialize:
+    post:
+      operationId: initializeSuperAdmin
+      tags: [admin]
+      summary: Initialize the configured Super Admin account once
+      responses:
+        "200":
+          description: The configured caller is the Super Admin
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminSetup" }
+        "401": { description: Authentication required }
+        "403": { description: Caller is not configured as the initial Super Admin }
+        "409": { description: Super Admin has already been initialized }
+  /admin/deposits:
+    get:
+      operationId: getAdminDeposits
+      tags: [admin]
+      summary: Review pending and completed BNB deposits
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Deposit requests for Super Admin review
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AdminBnbDeposit" }
+        "401": { description: Authentication required }
+        "403": { description: Super Admin access required }
+  /admin/deposits/{depositId}/approve:
+    post:
+      operationId: approveBnbDeposit
+      tags: [admin]
+      summary: Re-verify and approve a pending BNB deposit
+      parameters:
+        - in: path
+          name: depositId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Deposit credited to the user's internal BNB balance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBnbDeposit" }
+        "401": { description: Authentication required }
+        "403": { description: Super Admin access required }
+        "404": { description: Deposit not found }
+        "409": { description: Deposit is not pending or transaction is not sufficiently confirmed }
+  /admin/deposits/{depositId}/reject:
+    post:
+      operationId: rejectBnbDeposit
+      tags: [admin]
+      summary: Reject a pending BNB deposit with an audit record
+      parameters:
+        - in: path
+          name: depositId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminDecisionInput" }
+      responses:
+        "200":
+          description: Deposit rejected and audited
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBnbDeposit" }
+        "401": { description: Authentication required }
+        "403": { description: Super Admin access required }
+        "404": { description: Deposit not found }
+        "409": { description: Deposit is no longer pending }
+  /admin/withdrawals:
+    get:
+      operationId: getAdminWithdrawals
+      tags: [admin]
+      summary: Review BNB withdrawals for manual treasury payment
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Withdrawal requests for Super Admin review
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AdminBnbWithdrawal" }
+        "401": { description: Authentication required }
+        "403": { description: Super Admin access required }
+  /admin/withdrawals/{withdrawalId}/mark-paid:
+    post:
+      operationId: markBnbWithdrawalPaid
+      tags: [admin]
+      summary: Verify a manual treasury transaction and mark the withdrawal paid
+      parameters:
+        - in: path
+          name: withdrawalId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WithdrawalPaymentInput" }
+      responses:
+        "200":
+          description: Verified payment recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBnbWithdrawal" }
+        "401": { description: Authentication required }
+        "403": { description: Super Admin access required }
+        "404": { description: Withdrawal not found }
+        "409": { description: Transaction does not match the pending withdrawal }
+        "503": { description: BNB transaction verification is not configured }
+  /admin/withdrawals/{withdrawalId}/reject:
+    post:
+      operationId: rejectBnbWithdrawal
+      tags: [admin]
+      summary: Reject a pending withdrawal and release its reserved balance
+      parameters:
+        - in: path
+          name: withdrawalId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminDecisionInput" }
+      responses:
+        "200":
+          description: Withdrawal rejected and balance reservation released
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminBnbWithdrawal" }
+        "401": { description: Authentication required }
+        "403": { description: Super Admin access required }
+        "404": { description: Withdrawal not found }
+        "409": { description: Withdrawal is no longer pending }
+  /admin/farming/settings:
+    get:
+      operationId: getAdminFarmingSettings
+      tags: [admin, farming]
+      summary: Get the configured farming terms
+      responses:
+        "200":
+          description: Farming term configuration
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FarmingTerm" }
+        "401": { description: Authentication required }
+        "403": { description: Super Admin access required }
+    patch:
+      operationId: updateAdminFarmingSettings
+      tags: [admin, farming]
+      summary: Update farming terms and annual rates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FarmingSettingsInput" }
+      responses:
+        "200":
+          description: Farming settings updated and audited
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FarmingTerm" }
+        "401": { description: Authentication required }
+        "403": { description: Super Admin access required }
 components:
   schemas:
     HealthStatus:
@@ -33,4 +666,276 @@ components:
           type: string
       required:
         - status
+    ProfileInput:
+      type: object
+      additionalProperties: false
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 24
+          pattern: "^[A-Za-z0-9_]+$"
+        referralCode:
+          type: string
+          minLength: 6
+          maxLength: 24
+      required: [username]
+    UserProfile:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        bitsBalance: { type: integer, minimum: 0 }
+        referralCode: { type: string }
+        referredByUsername: { type: ["string", "null"] }
+        role: { type: string, enum: [user, super_admin] }
+        createdAt: { type: string, format: date-time }
+      required: [id, username, bitsBalance, referralCode, role, createdAt]
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank: { type: integer, minimum: 1 }
+        username: { type: string }
+        bitsBalance: { type: integer, minimum: 0 }
+      required: [rank, username, bitsBalance]
+    BitsLedgerEntry:
+      type: object
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [signup, referral, transfer_in, transfer_out] }
+        amount: { type: integer }
+        balanceAfter: { type: integer, minimum: 0 }
+        description: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, kind, amount, balanceAfter, description, createdAt]
+    BitsTransferInput:
+      type: object
+      additionalProperties: false
+      properties:
+        recipientUsername: { type: string, minLength: 3, maxLength: 24 }
+        amount: { type: integer, minimum: 1, maximum: 2147483647 }
+        idempotencyKey: { type: string, minLength: 16, maxLength: 128 }
+      required: [recipientUsername, amount, idempotencyKey]
+    BitsTransfer:
+      type: object
+      properties:
+        id: { type: string }
+        recipientUsername: { type: string }
+        amount: { type: integer, minimum: 1 }
+        senderBalance: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+      required: [id, recipientUsername, amount, senderBalance, createdAt]
+    WalletNonce:
+      type: object
+      properties:
+        nonce: { type: string }
+        message: { type: string }
+        expiresAt: { type: string, format: date-time }
+      required: [nonce, message, expiresAt]
+    WalletVerificationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        address: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        nonce: { type: string, minLength: 16, maxLength: 128 }
+        signature: { type: string, pattern: "^0x[a-fA-F0-9]+$" }
+        chainId: { type: integer, minimum: 1 }
+      required: [address, nonce, signature, chainId]
+    WalletAssociation:
+      type: object
+      properties:
+        address: { type: string }
+        chainId: { type: integer }
+        verifiedAt: { type: string, format: date-time }
+      required: [address, chainId, verifiedAt]
+    AdminUser:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        bitsBalance: { type: integer, minimum: 0 }
+        role: { type: string, enum: [user, super_admin] }
+        suspended: { type: boolean }
+        createdAt: { type: string, format: date-time }
+      required: [id, username, bitsBalance, role, suspended, createdAt]
+    SuspensionInput:
+      type: object
+      additionalProperties: false
+      properties:
+        suspended: { type: boolean }
+      required: [suspended]
+    AuditEvent:
+      type: object
+      properties:
+        id: { type: string }
+        actorUsername: { type: string }
+        action: { type: string }
+        targetUsername: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, actorUsername, action, createdAt]
+    AdminLedgerEntry:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        kind: { type: string, enum: [signup, referral, transfer_in, transfer_out] }
+        amount: { type: integer }
+        balanceAfter: { type: integer, minimum: 0 }
+        description: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, username, kind, amount, balanceAfter, description, createdAt]
+    PublicConfig:
+      type: object
+      properties:
+        bnbDepositsEnabled: { type: boolean }
+        treasuryAddress: { type: ["string", "null"] }
+        chainId: { type: integer, const: 56 }
+        minConfirmations: { type: integer, minimum: 1 }
+        withdrawalFeeBps: { type: integer, minimum: 0, maximum: 2500 }
+      required: [bnbDepositsEnabled, treasuryAddress, chainId, minConfirmations, withdrawalFeeBps]
+    DashboardSummary:
+      type: object
+      properties:
+        bnbBalanceWei: { type: string, pattern: "^[0-9]+$" }
+        directReferralCount: { type: integer, minimum: 0 }
+        referralBitsEarned: { type: integer, minimum: 0 }
+        pendingDepositCount: { type: integer, minimum: 0 }
+        pendingWithdrawalCount: { type: integer, minimum: 0 }
+        activeFarmCount: { type: integer, minimum: 0 }
+        matureFarmCount: { type: integer, minimum: 0 }
+      required: [bnbBalanceWei, directReferralCount, referralBitsEarned, pendingDepositCount, pendingWithdrawalCount, activeFarmCount, matureFarmCount]
+    ReferralSummary:
+      type: object
+      properties:
+        referralCode: { type: string }
+        directReferralCount: { type: integer, minimum: 0 }
+        rewardBits: { type: integer, minimum: 0 }
+        referrals:
+          type: array
+          items: { $ref: "#/components/schemas/ReferralEntry" }
+      required: [referralCode, directReferralCount, rewardBits, referrals]
+    ReferralEntry:
+      type: object
+      properties:
+        username: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [username, createdAt]
+    BnbDepositInput:
+      type: object
+      additionalProperties: false
+      properties:
+        txHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        chainId: { type: integer, const: 56 }
+      required: [txHash, chainId]
+    BnbDeposit:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        txHash: { type: string }
+        senderAddress: { type: string }
+        amountWei: { type: string, pattern: "^[0-9]+$" }
+        confirmations: { type: integer, minimum: 0 }
+        status: { type: string, enum: [pending, approved, rejected] }
+        rejectionNote: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        reviewedAt: { type: ["string", "null"], format: date-time }
+      required: [id, txHash, senderAddress, amountWei, confirmations, status, createdAt]
+    AdminBnbDeposit:
+      allOf:
+        - $ref: "#/components/schemas/BnbDeposit"
+        - type: object
+          properties:
+            username: { type: string }
+          required: [username]
+    BnbWithdrawalInput:
+      type: object
+      additionalProperties: false
+      properties:
+        amountBnb: { type: string, pattern: "^[0-9]+(\\.[0-9]{1,18})?$" }
+        destinationAddress: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+      required: [amountBnb, destinationAddress]
+    BnbWithdrawal:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        amountWei: { type: string, pattern: "^[0-9]+$" }
+        feeWei: { type: string, pattern: "^[0-9]+$" }
+        payoutWei: { type: string, pattern: "^[0-9]+$" }
+        destinationAddress: { type: string }
+        status: { type: string, enum: [pending, paid, rejected] }
+        txHash: { type: ["string", "null"] }
+        rejectionNote: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: ["string", "null"], format: date-time }
+      required: [id, amountWei, feeWei, payoutWei, destinationAddress, status, createdAt]
+    AdminBnbWithdrawal:
+      allOf:
+        - $ref: "#/components/schemas/BnbWithdrawal"
+        - type: object
+          properties:
+            username: { type: string }
+          required: [username]
+    FarmingTerm:
+      type: object
+      properties:
+        durationDays: { type: integer, enum: [15, 30, 45, 60] }
+        annualRateBps: { type: ["integer", "null"], minimum: 0, maximum: 10000 }
+        enabled: { type: boolean }
+      required: [durationDays, annualRateBps, enabled]
+    FarmingSettingsInput:
+      type: object
+      additionalProperties: false
+      properties:
+        terms:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              durationDays: { type: integer, enum: [15, 30, 45, 60] }
+              annualRateBps: { type: integer, minimum: 0, maximum: 10000 }
+              enabled: { type: boolean }
+            required: [durationDays, annualRateBps, enabled]
+      required: [terms]
+    FarmPositionInput:
+      type: object
+      additionalProperties: false
+      properties:
+        amountBnb: { type: string, pattern: "^[0-9]+(\\.[0-9]{1,18})?$" }
+        termDays: { type: integer, enum: [15, 30, 45, 60] }
+      required: [amountBnb, termDays]
+    FarmPosition:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        principalWei: { type: string, pattern: "^[0-9]+$" }
+        estimatedRewardWei: { type: string, pattern: "^[0-9]+$" }
+        termDays: { type: integer, enum: [15, 30, 45, 60] }
+        annualRateBps: { type: integer, minimum: 0, maximum: 10000 }
+        status: { type: string, enum: [active, claimed] }
+        createdAt: { type: string, format: date-time }
+        maturesAt: { type: string, format: date-time }
+        claimedAt: { type: ["string", "null"], format: date-time }
+      required: [id, principalWei, estimatedRewardWei, termDays, annualRateBps, status, createdAt, maturesAt]
+    AdminSetup:
+      type: object
+      properties:
+        initialized: { type: boolean }
+        eligible: { type: boolean }
+        clerkUserId: { type: string }
+      required: [initialized, eligible, clerkUserId]
+    AdminDecisionInput:
+      type: object
+      additionalProperties: false
+      properties:
+        note: { type: string, maxLength: 200 }
+      required: [note]
+    WithdrawalPaymentInput:
+      type: object
+      additionalProperties: false
+      properties:
+        txHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+      required: [txHash]
 

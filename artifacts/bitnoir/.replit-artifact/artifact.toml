@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Bitnoir"
+description = "An early-stage crypto ecosystem for account participation, internal Bits and referral activity, verified wallet ownership, transparent project documentation, and carefully gated BNB workflows."
+version = "1.0.0"
+id = "artifacts/bitnoir"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21671
+
+[services.development]
+run = "pnpm --filter @workspace/bitnoir run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/bitnoir", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/bitnoir/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21671"
+BASE_PATH = "/"
